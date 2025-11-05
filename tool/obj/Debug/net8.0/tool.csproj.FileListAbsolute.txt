@@ -1,0 +1,17 @@
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\obj\Debug\net8.0\tool.csproj.AssemblyReference.cache
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\obj\Debug\net8.0\tool.GeneratedMSBuildEditorConfig.editorconfig
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\obj\Debug\net8.0\tool.AssemblyInfoInputs.cache
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\obj\Debug\net8.0\tool.AssemblyInfo.cs
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\obj\Debug\net8.0\tool.csproj.CoreCompileInputs.cache
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\bin\Debug\net8.0\tool.exe
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\bin\Debug\net8.0\tool.deps.json
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\bin\Debug\net8.0\tool.runtimeconfig.json
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\bin\Debug\net8.0\tool.dll
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\bin\Debug\net8.0\tool.pdb
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\bin\Debug\net8.0\YamlDotNet.dll
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\obj\Debug\net8.0\tool.csproj.Up2Date
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\obj\Debug\net8.0\tool.dll
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\obj\Debug\net8.0\refint\tool.dll
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\obj\Debug\net8.0\tool.pdb
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\obj\Debug\net8.0\tool.genruntimeconfig.cache
+D:\Aleksa\Desktop\unity-directory-analysis-tool\tool\obj\Debug\net8.0\ref\tool.dll

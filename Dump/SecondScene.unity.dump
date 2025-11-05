@@ -1,0 +1,6 @@
+Main Camera
+Parent
+--Child2
+--Child1
+----ChildNested
+Directional Light
