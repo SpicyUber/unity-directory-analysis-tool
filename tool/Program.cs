@@ -19,23 +19,24 @@ namespace tool
         public const int GAME_OBJECT_ID = 1, MAX_DEGREE_OF_PARALLELISM = 6;
         static void Main( string[] args)
         {
-            // Console.WriteLine(Directory.GetCurrentDirectory());
-            //ConfirmProperty(@"..\..\..\..\ScriptParseTesting\ScriptTest.cs", @"..\..\..\..\ScriptParseTesting\ScriptTest.cs", "ScriptTest");
-            if (args == null || args.Length<2) { args = new string[2];
-            args[0] = @"..\..\..\..\TestCase02";
-            args[1] = @"..\..\..\..\Dump2";
-            }
 
-            try { Analize(args[0], args[1]); } catch (Exception e) { Console.WriteLine(e.Message); }
+           if (args == null || args.Length<2) {
+
+                Console.WriteLine("The tool requires a unity project path and output folder path.\nFormat: tool.exe unity_project_path output_folder_path ");
+
+                return;
+            }
+            Console.WriteLine("Executing analysis of unity directory...");
+            try { Analyse(args[0], args[1]); } catch (Exception e) { Console.WriteLine("Could not complete analysis correctly. "+e.Message); }
         }
 
-        private static void Analize(string inputPath, string outputPath)
+        private static void Analyse(string inputPath, string outputPath)
         {
             string[] sceneFilePaths, scriptMetaFilePaths;
-            if (!Directory.Exists(inputPath + @"\Assets")) throw new Exception("Assets folder could not be found.");
-
-            Task<string[]> t1 = Task<string[]>.Run(() => Directory.GetFiles(inputPath + @"\Assets", "*.unity", SearchOption.AllDirectories));
-            Task<string[]> t2 = Task<string[]>.Run(() => Directory.GetFiles(inputPath + @"\Assets", "*.cs.meta", SearchOption.AllDirectories));
+            if (!Directory.Exists(Path.Combine(inputPath, "Assets"))) throw new Exception("Assets folder could not be found.");
+            Console.WriteLine("Searching directory for scenes and script metadata...");
+            Task<string[]> t1 = Task<string[]>.Run(() => Directory.GetFiles(Path.Combine(inputPath, "Assets"), "*.unity", SearchOption.AllDirectories));
+            Task<string[]> t2 = Task<string[]>.Run(() => Directory.GetFiles(Path.Combine(inputPath, "Assets"), " *.cs.meta", SearchOption.AllDirectories));
             Task[] dataGatheringTasks = { t1, t2 };
             Task.WaitAll(dataGatheringTasks);
 
@@ -45,6 +46,7 @@ namespace tool
             if (sceneFilePaths.Length == 0) throw new Exception("0 Scenes found.");
             if (scriptMetaFilePaths.Length == 0) throw new Exception("0 Script meta files found.");
 
+            
             Task t3 = Task.Run(() => DumpAllScenes(sceneFilePaths, outputPath));
             Task t4 = Task.Run(() => DumpUnusedScripts(scriptMetaFilePaths, sceneFilePaths, inputPath ,outputPath));
             Task[] dumpingTasks = { t3, t4 };
@@ -70,14 +72,16 @@ namespace tool
             streamWriter.AutoFlush = true;
             streamWriter.Write(dump);
             streamWriter.Close();
+                Console.WriteLine("Finished dumping unused scripts into " + Path.GetFileNameWithoutExtension(inputPath) + "!");
             }
             catch (Exception ex) { Console.WriteLine($"ERROR: Exception while dumping unused scripts ({ex.Message})"); }
         }
 
         private static void ScanIfScriptIsUnused(string scriptMetaFilePath, string scriptGuid ,string[] sceneFilePaths,string inputPath ,string outputPath, Dictionary<string, string> guidDictionary, ref string dump)
         {
-            
-            
+
+            Console.WriteLine("Checking if script "+Path.GetFileNameWithoutExtension(scriptMetaFilePath)+" is unused...");
+
             ParallelOptions parallelOptions = new()
             {
                 MaxDegreeOfParallelism = MAX_DEGREE_OF_PARALLELISM
@@ -86,12 +90,12 @@ namespace tool
             using CancellationTokenSource cts = new();
           
             Parallel.ForEach<string>(sceneFilePaths, parallelOptions, (sceneFilePath, ct) => { if (ScriptIsUsedInsideScene( scriptMetaFilePath, scriptGuid ,sceneFilePath, guidDictionary)) { ct.Stop(); isUsed = true; }  });
-            if (!isUsed)dump=dump+$"Relative Path: {ConvertIntoRelativePath(scriptMetaFilePath,inputPath)} , GUID: {scriptGuid}"+"\n";
+            if (!isUsed)dump=dump+$"Relative Path: {ConvertIntoUnityDirectoryRelativePath(scriptMetaFilePath,inputPath)} , GUID: {scriptGuid}"+"\n";
 
 
         }
 
-        private static string ConvertIntoRelativePath(string scriptMetaFilePath, string inputPath) {
+        private static string ConvertIntoUnityDirectoryRelativePath(string scriptMetaFilePath, string inputPath) {
             if (scriptMetaFilePath.StartsWith(inputPath)) { 
             string temp = scriptMetaFilePath.Substring(inputPath.Length+1);
                 if (temp.EndsWith(".meta")) return temp.Substring(0, temp.Length - 5);
@@ -270,7 +274,7 @@ namespace tool
         private static async Task DumpScene(string inputFilePath, string outputPath)
         {
             try {
-
+                Console.WriteLine("Dumping scene" + Path.GetFileNameWithoutExtension(inputFilePath)+ " hierarchy into "+Path.GetDirectoryName(outputPath)+"...");
             using (StreamWriter streamWriter = File.CreateText(Path.Combine(outputPath, Path.GetFileName(inputFilePath) + ".dump"))) { 
                     
             streamWriter.AutoFlush = true;
@@ -281,6 +285,7 @@ namespace tool
             RecursivePrintTree(0,"0",inputFilePath,yaml.Documents.ToList(), LocateGameObjects(inputFilePath), ref dumpText);
             await streamWriter.WriteAsync(dumpText);
                 }
+                Console.WriteLine("Dump finished for scene " + Path.GetFileNameWithoutExtension(inputFilePath)+ "!");
 
             }
             catch(Exception e)
