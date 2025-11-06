@@ -46,25 +46,35 @@ namespace tool
             if (scriptMetaFilePaths.Length == 0) throw new Exception("0 Script meta files found.");
 
             Task t3 = Task.Run(() => DumpAllScenes(sceneFilePaths, outputPath));
-            Task t4 = Task.Run(() => DumpUnusedScripts(scriptMetaFilePaths, sceneFilePaths, outputPath));
+            Task t4 = Task.Run(() => DumpUnusedScripts(scriptMetaFilePaths, sceneFilePaths, inputPath ,outputPath));
             Task[] dumpingTasks = { t3, t4 };
             Task.WaitAll(dumpingTasks);
         }
 
          
-        private static void DumpUnusedScripts(string[] scriptMetaFilePaths, string[] sceneFilePaths, string outputPath)
-        {   
+        private static void DumpUnusedScripts(string[] scriptMetaFilePaths, string[] sceneFilePaths, string inputPath ,string outputPath)
+        {
             //first value is guid, second is path
-            Dictionary<string, string> guidDictionary = GenerateGuidDictionary(scriptMetaFilePaths);
+            try { Dictionary<string, string> guidDictionary = GenerateGuidDictionary(scriptMetaFilePaths); 
 
             ParallelOptions parallelOptions = new()
             {
                 MaxDegreeOfParallelism = MAX_DEGREE_OF_PARALLELISM
             };
-            Parallel.ForEach<string>(scriptMetaFilePaths, parallelOptions, (scriptMetaFilePath, ct) => { ScanIfScriptIsUnused(scriptMetaFilePath, sceneFilePaths ,outputPath,guidDictionary); });
+            
+            string dump = "";
+
+            Parallel.ForEach<string>(guidDictionary.Keys, parallelOptions, (scriptGuid, ct) => { string scriptMetaFilePath = guidDictionary[scriptGuid]; ScanIfScriptIsUnused(scriptMetaFilePath, scriptGuid, sceneFilePaths ,inputPath,outputPath,guidDictionary, ref dump); });
+
+            StreamWriter streamWriter = File.CreateText(Path.Combine(outputPath, ".UnusedScripts.txt"));
+            streamWriter.AutoFlush = true;
+            streamWriter.Write(dump);
+            streamWriter.Close();
+            }
+            catch (Exception ex) { Console.WriteLine($"ERROR: Exception while dumping unused scripts ({ex.Message})"); }
         }
 
-        private static void ScanIfScriptIsUnused(string scriptMetaFilePath, string[] sceneFilePaths ,string outputPath, Dictionary<string, string> guidDictionary)
+        private static void ScanIfScriptIsUnused(string scriptMetaFilePath, string scriptGuid ,string[] sceneFilePaths,string inputPath ,string outputPath, Dictionary<string, string> guidDictionary, ref string dump)
         {
             
             
@@ -74,19 +84,32 @@ namespace tool
             };
             bool isUsed = false;
             using CancellationTokenSource cts = new();
-            Parallel.ForEach<string>(sceneFilePaths, parallelOptions, (sceneFilePath, ct) => { if (ScriptIsUsedInsideScene( scriptMetaFilePath, sceneFilePath, guidDictionary)) { ct.Stop(); isUsed = true; }  });
-            if (!isUsed)Console.WriteLine(scriptMetaFilePath);
+          
+            Parallel.ForEach<string>(sceneFilePaths, parallelOptions, (sceneFilePath, ct) => { if (ScriptIsUsedInsideScene( scriptMetaFilePath, scriptGuid ,sceneFilePath, guidDictionary)) { ct.Stop(); isUsed = true; }  });
+            if (!isUsed)dump=dump+$"Relative Path: {ConvertIntoRelativePath(scriptMetaFilePath,inputPath)} , GUID: {scriptGuid}"+"\n";
 
 
         }
 
-        private static bool ScriptIsUsedInsideScene(string scriptMetaFilePath,string sceneFilePath, Dictionary<string, string> guidDictionary)
+        private static string ConvertIntoRelativePath(string scriptMetaFilePath, string inputPath) {
+            if (scriptMetaFilePath.StartsWith(inputPath)) { 
+            string temp = scriptMetaFilePath.Substring(inputPath.Length+1);
+                if (temp.EndsWith(".meta")) return temp.Substring(0, temp.Length - 5);
+                else return temp;
+            }
+
+            Console.WriteLine("Error trimming path. (This should not ever happen in practice)");
+            return "Error";
+            
+        } 
+
+        private static bool ScriptIsUsedInsideScene(string scriptMetaFilePath,string scriptGuid, string sceneFilePath, Dictionary<string, string> guidDictionary)
         {
             StringReader input = new StringReader(File.ReadAllText(sceneFilePath));
             YamlStream yaml = new();
             yaml.Load(input);
 
-           string scriptGuid = LocateScript(scriptMetaFilePath).Item1;
+           
 
             for (int i=0; i<yaml.Documents.Count();i++)
             {
@@ -204,13 +227,20 @@ namespace tool
 
         private static Dictionary<string, string> GenerateGuidDictionary(string[] scriptMetaFilePaths)
         {
-            Dictionary<string, string> guidDictionary = new();
-            foreach (string scriptMetaFilePath in scriptMetaFilePaths) {
-                Tuple<string, string> script = LocateScript(scriptMetaFilePath);
-                guidDictionary.Add(script.Item1,script.Item2);
+            try
+            {
+                Dictionary<string, string> guidDictionary = new();
+                foreach (string scriptMetaFilePath in scriptMetaFilePaths)
+                {
 
+                    Tuple<string, string> script = LocateScript(scriptMetaFilePath);
+                    guidDictionary.Add(script.Item1, script.Item2);
+
+
+                }
+                return guidDictionary;
             }
-            return guidDictionary;
+            catch (Exception ex) { throw ex; }
         }
 
         private static Tuple<string, string> LocateScript(string scriptMetaFilePath)
@@ -241,7 +271,8 @@ namespace tool
         {
             try {
 
-            StreamWriter streamWriter = File.CreateText(Path.Combine(outputPath, Path.GetFileName(inputFilePath)+".dump"));
+            using (StreamWriter streamWriter = File.CreateText(Path.Combine(outputPath, Path.GetFileName(inputFilePath) + ".dump"))) { 
+                    
             streamWriter.AutoFlush = true;
             StringReader input = new StringReader(File.ReadAllText(inputFilePath));
             YamlStream yaml = new YamlStream();
@@ -249,7 +280,10 @@ namespace tool
             string dumpText = "";
             RecursivePrintTree(0,"0",inputFilePath,yaml.Documents.ToList(), LocateGameObjects(inputFilePath), ref dumpText);
             await streamWriter.WriteAsync(dumpText);
-            }catch(Exception e)
+                }
+
+            }
+            catch(Exception e)
             {
                 Console.WriteLine($"ERROR: Could not dump {Path.GetFileName(inputFilePath)}. " + e.Message);
             }
