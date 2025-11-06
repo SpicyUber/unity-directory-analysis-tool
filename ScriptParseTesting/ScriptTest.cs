@@ -5,7 +5,7 @@ using UnityEngine;
 public class ScriptTest : MonoBehaviour
 {
     public ScriptB Script1 { get; set; };
-    public Object Script2;
+    public Object Script2, Script3;
     // Start is called before the first frame update
     void Start()
     {

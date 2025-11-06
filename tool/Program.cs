@@ -103,7 +103,7 @@ namespace tool
                     }
                     foreach (var child in monoNode.Children)
                     {
-                        if (child.Value is YamlMappingNode && ((YamlMappingNode)child.Value).Children.TryGetValue(new YamlScalarNode("guid"), out YamlNode guid) && guid.ToString() == scriptGuid && (((YamlScalarNode)child.Key).Value == "m_Script" || ConfirmProperty(mainScriptPath, scriptMetaFilePath, ((YamlScalarNode)child.Key).Value))) { ConfirmProperty(mainScriptPath,scriptMetaFilePath, ((YamlScalarNode)child.Key).Value); return true; }
+                        if (child.Value is YamlMappingNode && ((YamlMappingNode)child.Value).Children.TryGetValue(new YamlScalarNode("guid"), out YamlNode guid) && guid.ToString() == scriptGuid && (((YamlScalarNode)child.Key).Value == "m_Script" || ConfirmProperty(mainScriptPath, scriptMetaFilePath, ((YamlScalarNode)child.Key).Value))) { return true; }
                     }
                 }
 
@@ -123,16 +123,27 @@ namespace tool
                 mainClassPath = mainClassPath.Substring(0, mainClassPath.Length-5);
 
             if (referencedClassPath.EndsWith(".meta"))
-                referencedClassPath = referencedClassPath.Substring(0, mainClassPath.Length - 5);
+                referencedClassPath = referencedClassPath.Substring(0, referencedClassPath.Length - 5);
             
-            SyntaxTree tree = CSharpSyntaxTree.ParseText(File.ReadAllText(mainClassPath));
-            var members = tree.GetRoot().DescendantNodes().OfType<MemberDeclarationSyntax>();
+            SyntaxTree mainClassTree = CSharpSyntaxTree.ParseText(File.ReadAllText(mainClassPath));
+            var members = mainClassTree.GetRoot().DescendantNodes().OfType<MemberDeclarationSyntax>();
+
+            SyntaxTree referenceClassTree = CSharpSyntaxTree.ParseText(File.ReadAllText(referencedClassPath));
+            ClassDeclarationSyntax classDeclaration = referenceClassTree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault();
+
+            string referencedClassName = "";
+            if (classDeclaration != null) referencedClassName = classDeclaration.Identifier.Text;
+            
             foreach (var member in members)
-            {
-                if (member is PropertyDeclarationSyntax property )
-                { /*Console.WriteLine(property.Modifiers.First().ValueText +" "+property.Type+" " + property.Identifier);*/ }
+            {   //case 1: it's a public property
+                if (member is PropertyDeclarationSyntax property && property.Modifiers.First().ValueText == "public" && property.Type.ToString() == referencedClassName && propertyName == property.Identifier.ToString())
+                    return true;
+                //case 2: it's a public field
+                else if (member is FieldDeclarationSyntax field && field.Modifiers.First().ValueText == "public" && field.Declaration.Variables.ToString().Contains(propertyName) && referencedClassName == field.Declaration.Type.ToString()) { /*Console.WriteLine(field.Declaration.Variables.ToString().Contains("Script0")); Console.WriteLine(field.Declaration.Type);*/ return true; }
+                // TODO: case 3: serialize field
+                else if (true) { return true; }
             }
-                    return false;
+            return false;
 
         }
         private static Dictionary<string, string> GenerateGuidDictionary(string[] scriptMetaFilePaths)
