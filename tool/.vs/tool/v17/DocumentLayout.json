@@ -17,12 +17,8 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 1,
           "Children": [
-            {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
-            },
             {
               "$type": "Document",
               "DocumentIndex": 1,
@@ -31,7 +27,7 @@
               "RelativeDocumentMoniker": "..\\ScriptParseTesting\\ScriptTest.cs",
               "ToolTip": "D:\\Aleksa\\Desktop\\unity-directory-analysis-tool\\ScriptParseTesting\\ScriptTest.cs",
               "RelativeToolTip": "..\\ScriptParseTesting\\ScriptTest.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAiAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAUAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-11-06T00:10:02.954Z",
               "EditorCaption": ""
@@ -44,7 +40,7 @@
               "RelativeDocumentMoniker": "Program.cs",
               "ToolTip": "D:\\Aleksa\\Desktop\\unity-directory-analysis-tool\\tool\\Program.cs",
               "RelativeToolTip": "Program.cs",
-              "ViewState": "AgIAAGwAAAAAAAAAAAAswI4AAAAhAAAAAAAAAA==",
+              "ViewState": "AgIAAAMAAAAAAAAAAAAAABkAAAArAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-11-04T23:27:29.567Z",
               "EditorCaption": ""

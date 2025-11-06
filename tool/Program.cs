@@ -20,10 +20,10 @@ namespace tool
         static void Main( string[] args)
         {
             // Console.WriteLine(Directory.GetCurrentDirectory());
-            ConfirmProperty(@"..\..\..\..\ScriptParseTesting\ScriptTest.cs", @"..\..\..\..\ScriptParseTesting\ScriptTest.cs", "ScriptTest");
+            //ConfirmProperty(@"..\..\..\..\ScriptParseTesting\ScriptTest.cs", @"..\..\..\..\ScriptParseTesting\ScriptTest.cs", "ScriptTest");
             if (args == null || args.Length<2) { args = new string[2];
-            args[0] = @"..\..\..\..\TestCase01";
-            args[1] = @"..\..\..\..\Dump";
+            args[0] = @"..\..\..\..\TestCase02";
+            args[1] = @"..\..\..\..\Dump2";
             }
 
             try { Analize(args[0], args[1]); } catch (Exception e) { Console.WriteLine(e.Message); }
@@ -116,7 +116,8 @@ namespace tool
 
         private static bool ConfirmProperty(string mainClassPath, string referencedClassPath, string propertyName)
         {
-            //Console.WriteLine(mainClassPath+" "+propertyName);
+           
+            try { 
             if(mainClassPath.Length == 0 || referencedClassPath.Length==0 || propertyName.Length==0) return false;
 
             if (mainClassPath.EndsWith(".meta"))
@@ -136,16 +137,71 @@ namespace tool
             
             foreach (var member in members)
             {   //case 1: it's a public property
-                if (member is PropertyDeclarationSyntax property && property.Modifiers.First().ValueText == "public" && property.Type.ToString() == referencedClassName && propertyName == property.Identifier.ToString())
+                if (member is PropertyDeclarationSyntax property && PropertyHasModifier(property, "public") && property.Type.ToString() == referencedClassName && propertyName == property.Identifier.Text)
                     return true;
                 //case 2: it's a public field
-                else if (member is FieldDeclarationSyntax field && field.Modifiers.First().ValueText == "public" && field.Declaration.Variables.ToString().Contains(propertyName) && referencedClassName == field.Declaration.Type.ToString()) { /*Console.WriteLine(field.Declaration.Variables.ToString().Contains("Script0")); Console.WriteLine(field.Declaration.Type);*/ return true; }
-                // TODO: case 3: serialize field
-                else if (true) { return true; }
+                else if (member is FieldDeclarationSyntax field && FieldHasModifier(field,"public") && FieldHasVariable(field,propertyName) && referencedClassName == field.Declaration.Type.ToString())
+                    return true; 
+                //case 3: serialize field
+                else if (member is FieldDeclarationSyntax privField && !FieldHasModifier(privField, "public") && HasSerializeField(privField) && FieldHasVariable(privField, propertyName) && privField.Declaration.Type.ToString() == referencedClassName) 
+                    return true; 
             }
             return false;
-
+            }catch(Exception e) { Console.WriteLine("Warning!: Could not parse " + mainClassPath + " . It will automatically be treated as unused. (Error:"+e.Message+")"); return false; }
         }
+
+        private static bool FieldHasModifier(FieldDeclarationSyntax field, string modifierSearchCriteria)
+        {
+           foreach(var modifier in field.Modifiers)
+            {
+                if(modifier.ValueText == modifierSearchCriteria) return true;
+            }
+            return false;
+        }
+
+        private static bool FieldHasVariable(FieldDeclarationSyntax field, string variableSearchCriteria)
+        {
+            foreach (var variable in field.Declaration.Variables)
+            {
+                if (variable.Identifier.Text == variableSearchCriteria)
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool PropertyHasModifier(PropertyDeclarationSyntax field, string modifierSearchCriteria)
+        {
+            foreach (var modifier in field.Modifiers)
+            {
+                if (modifier.ValueText == modifierSearchCriteria) return true;
+            }
+            return false;
+        }
+
+        private static bool HasSerializeField(FieldDeclarationSyntax privField)
+        {
+            bool hasSerializeField = false;
+
+            foreach (AttributeListSyntax attributeList in privField.AttributeLists)
+            {
+                foreach (AttributeSyntax attribute in attributeList.Attributes)
+                {
+                    string name = attribute.Name.ToString();
+
+                    if (name == "SerializeField" ||
+                        name.EndsWith(".SerializeField"))
+                    {
+                        hasSerializeField = true;
+                        break;
+                    }
+                }
+
+                if (hasSerializeField)
+                    break;
+            }
+            return hasSerializeField;
+        }
+
         private static Dictionary<string, string> GenerateGuidDictionary(string[] scriptMetaFilePaths)
         {
             Dictionary<string, string> guidDictionary = new();
