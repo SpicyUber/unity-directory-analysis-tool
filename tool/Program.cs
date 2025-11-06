@@ -19,9 +19,7 @@ namespace tool
         public const int GAME_OBJECT_ID = 1, MAX_DEGREE_OF_PARALLELISM = 6;
         static void Main( string[] args)
         {
-            args = new string[2];
-            args[0] = @"D:\Aleksa\Desktop\unity-directory-analysis-tool\TestCase02";
-            args[1] = @"D:\Aleksa\Desktop\unity-directory-analysis-tool\DumpTestCase02";
+           
            if (args == null || args.Length<2) {
 
                 Console.WriteLine("The tool requires a unity project path and output folder path.\nFormat: tool.exe unity_project_path output_folder_path ");
