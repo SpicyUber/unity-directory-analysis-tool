@@ -1,6 +1,13 @@
 ﻿
 
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
+using System.Collections.Specialized;
+using System.IO;
+using System.Net.WebSockets;
+using System.Text;
 using System.Threading.Tasks;
 using YamlDotNet.Core.Tokens;
 using YamlDotNet.RepresentationModel;
@@ -12,50 +19,163 @@ namespace tool
         public const int GAME_OBJECT_ID = 1, MAX_DEGREE_OF_PARALLELISM = 6;
         static void Main( string[] args)
         {
-            Console.WriteLine(Directory.GetCurrentDirectory());
+            // Console.WriteLine(Directory.GetCurrentDirectory());
+            ConfirmProperty(@"..\..\..\..\ScriptParseTesting\ScriptTest.cs", @"..\..\..\..\ScriptParseTesting\ScriptTest.cs", "ScriptTest");
             if (args == null || args.Length<2) { args = new string[2];
             args[0] = @"..\..\..\..\TestCase01";
             args[1] = @"..\..\..\..\Dump";
             }
-             
-            Analize(args[0], args[1]);
+
+            try { Analize(args[0], args[1]); } catch (Exception e) { Console.WriteLine(e.Message); }
         }
 
         private static void Analize(string inputPath, string outputPath)
         {
-            Task t1 = Task.Run(() => LocateAndDumpAllScenes(inputPath + @"\Assets", outputPath));
-            Task t2 = Task.Run(() => LocateUnusedScripts(inputPath + @"\Assets", outputPath));
-            Task[] tasks = { t1, t2 };
-            Task.WaitAll(tasks);
-        }
+            string[] sceneFilePaths, scriptMetaFilePaths;
+            if (!Directory.Exists(inputPath + @"\Assets")) throw new Exception("Assets folder could not be found.");
 
-        //change void into task later
-        private static async void LocateUnusedScripts(string v, string outputPath)
-        {
-            return;
-        }
+            Task<string[]> t1 = Task<string[]>.Run(() => Directory.GetFiles(inputPath + @"\Assets", "*.unity", SearchOption.AllDirectories));
+            Task<string[]> t2 = Task<string[]>.Run(() => Directory.GetFiles(inputPath + @"\Assets", "*.cs.meta", SearchOption.AllDirectories));
+            Task[] dataGatheringTasks = { t1, t2 };
+            Task.WaitAll(dataGatheringTasks);
 
-        private static async Task LocateAndDumpAllScenes(string assetsPath, string outputPath)
-        {
-            if (!Directory.Exists(assetsPath)) throw new Exception("Assets folder could not be found.");
-            string[] sceneFilePaths = Directory.GetFiles(assetsPath,"*.unity",SearchOption.AllDirectories);
+            sceneFilePaths = t1.Result;
+            scriptMetaFilePaths = t2.Result;
 
             if (sceneFilePaths.Length == 0) throw new Exception("0 Scenes found.");
-            else
+            if (scriptMetaFilePaths.Length == 0) throw new Exception("0 Script meta files found.");
+
+            Task t3 = Task.Run(() => DumpAllScenes(sceneFilePaths, outputPath));
+            Task t4 = Task.Run(() => DumpUnusedScripts(scriptMetaFilePaths, sceneFilePaths, outputPath));
+            Task[] dumpingTasks = { t3, t4 };
+            Task.WaitAll(dumpingTasks);
+        }
+
+         
+        private static void DumpUnusedScripts(string[] scriptMetaFilePaths, string[] sceneFilePaths, string outputPath)
+        {   
+            //first value is guid, second is path
+            Dictionary<string, string> guidDictionary = GenerateGuidDictionary(scriptMetaFilePaths);
+
+            ParallelOptions parallelOptions = new()
             {
+                MaxDegreeOfParallelism = MAX_DEGREE_OF_PARALLELISM
+            };
+            Parallel.ForEach<string>(scriptMetaFilePaths, parallelOptions, (scriptMetaFilePath, ct) => { ScanIfScriptIsUnused(scriptMetaFilePath, sceneFilePaths ,outputPath,guidDictionary); });
+        }
+
+        private static void ScanIfScriptIsUnused(string scriptMetaFilePath, string[] sceneFilePaths ,string outputPath, Dictionary<string, string> guidDictionary)
+        {
+            
+            
+            ParallelOptions parallelOptions = new()
+            {
+                MaxDegreeOfParallelism = MAX_DEGREE_OF_PARALLELISM
+            };
+            bool isUsed = false;
+            using CancellationTokenSource cts = new();
+            Parallel.ForEach<string>(sceneFilePaths, parallelOptions, (sceneFilePath, ct) => { if (ScriptIsUsedInsideScene( scriptMetaFilePath, sceneFilePath, guidDictionary)) { ct.Stop(); isUsed = true; }  });
+            if (!isUsed)Console.WriteLine(scriptMetaFilePath);
+
+
+        }
+
+        private static bool ScriptIsUsedInsideScene(string scriptMetaFilePath,string sceneFilePath, Dictionary<string, string> guidDictionary)
+        {
+            StringReader input = new StringReader(File.ReadAllText(sceneFilePath));
+            YamlStream yaml = new();
+            yaml.Load(input);
+
+           string scriptGuid = LocateScript(scriptMetaFilePath).Item1;
+
+            for (int i=0; i<yaml.Documents.Count();i++)
+            {
+                YamlMappingNode rootNode = (YamlMappingNode)yaml.Documents[i].RootNode;
+                if (((YamlScalarNode)rootNode.Children[0].Key).Value == "MonoBehaviour")
+                {
+                    YamlMappingNode monoNode = (YamlMappingNode)rootNode.Children[0].Value;
+                    string mainScriptGuid = "";
+                    string mainScriptPath = "";
+                    if (monoNode.Children.TryGetValue(new YamlScalarNode("m_Script"), out YamlNode scriptNode) && scriptNode is YamlMappingNode nodeMap && nodeMap.Children.TryGetValue(new YamlScalarNode("guid"), out YamlNode mainScriptGuiNode))
+                    {
+                        mainScriptGuid = ((YamlScalarNode)mainScriptGuiNode).Value;
+                        mainScriptPath = guidDictionary[mainScriptGuid];
+                    }
+                    foreach (var child in monoNode.Children)
+                    {
+                        if (child.Value is YamlMappingNode && ((YamlMappingNode)child.Value).Children.TryGetValue(new YamlScalarNode("guid"), out YamlNode guid) && guid.ToString() == scriptGuid && (((YamlScalarNode)child.Key).Value == "m_Script" || ConfirmProperty(mainScriptPath, scriptMetaFilePath, ((YamlScalarNode)child.Key).Value))) { ConfirmProperty(mainScriptPath,scriptMetaFilePath, ((YamlScalarNode)child.Key).Value); return true; }
+                    }
+                }
+
+
+
+            }
+
+            return false;
+        }
+
+        private static bool ConfirmProperty(string mainClassPath, string referencedClassPath, string propertyName)
+        {
+            //Console.WriteLine(mainClassPath+" "+propertyName);
+            if(mainClassPath.Length == 0 || referencedClassPath.Length==0 || propertyName.Length==0) return false;
+
+            if (mainClassPath.EndsWith(".meta"))
+                mainClassPath = mainClassPath.Substring(0, mainClassPath.Length-5);
+
+            if (referencedClassPath.EndsWith(".meta"))
+                referencedClassPath = referencedClassPath.Substring(0, mainClassPath.Length - 5);
+            
+            SyntaxTree tree = CSharpSyntaxTree.ParseText(File.ReadAllText(mainClassPath));
+            var members = tree.GetRoot().DescendantNodes().OfType<MemberDeclarationSyntax>();
+            foreach (var member in members)
+            {
+                if (member is PropertyDeclarationSyntax property )
+                { /*Console.WriteLine(property.Modifiers.First().ValueText +" "+property.Type+" " + property.Identifier);*/ }
+            }
+                    return false;
+
+        }
+        private static Dictionary<string, string> GenerateGuidDictionary(string[] scriptMetaFilePaths)
+        {
+            Dictionary<string, string> guidDictionary = new();
+            foreach (string scriptMetaFilePath in scriptMetaFilePaths) {
+                Tuple<string, string> script = LocateScript(scriptMetaFilePath);
+                guidDictionary.Add(script.Item1,script.Item2);
+
+            }
+            return guidDictionary;
+        }
+
+        private static Tuple<string, string> LocateScript(string scriptMetaFilePath)
+        {
+            try {
+                string[] yaml = File.ReadAllLines(scriptMetaFilePath);
+
+                foreach (string line in yaml) {
+                    if (line.StartsWith("guid: ")) return new(line.Split("guid: ")[1].TrimEnd(), scriptMetaFilePath);
+            }
+                throw new Exception("GUID not found in yaml.");
+            } catch (Exception ex) { throw new Exception("ERROR: Could not locate meta file for script "+scriptMetaFilePath+". ("+ex.Message+")"); }
+        }
+
+
+
+        private static async Task DumpAllScenes(string[] sceneFilePaths, string outputPath)
+        {
+            
                 ParallelOptions parallelOptions = new()
                 {
                     MaxDegreeOfParallelism = MAX_DEGREE_OF_PARALLELISM
                 };
                 await Parallel.ForEachAsync<string>(sceneFilePaths, parallelOptions, async (sceneFilePath, ct) => { await DumpScene(sceneFilePath, outputPath); });
-            }
+            
         }
         private static async Task DumpScene(string inputFilePath, string outputPath)
         {
             try {
 
-           StreamWriter streamWriter = File.CreateText(Path.Combine(outputPath, Path.GetFileName(inputFilePath)+".dump"));
-                streamWriter.AutoFlush = true;
+            StreamWriter streamWriter = File.CreateText(Path.Combine(outputPath, Path.GetFileName(inputFilePath)+".dump"));
+            streamWriter.AutoFlush = true;
             StringReader input = new StringReader(File.ReadAllText(inputFilePath));
             YamlStream yaml = new YamlStream();
             yaml.Load(input);
@@ -67,6 +187,8 @@ namespace tool
                 Console.WriteLine($"ERROR: Could not dump {Path.GetFileName(inputFilePath)}. " + e.Message);
             }
         }
+
+       
 
         private static void RecursivePrintTree(int depth, string fatherId, string filePath, List<YamlDocument> yamlDocuments, Dictionary<string, string> gameObjectDictionary, ref string dumpText)
         {
