@@ -5,9 +5,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{0A04DE4A-7CC5-4BF5-A17C-136238CCBA68}|tool.csproj|d:\\aleksa\\desktop\\unity-directory-analysis-tool\\tool\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{0A04DE4A-7CC5-4BF5-A17C-136238CCBA68}|tool.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Aleksa\\Desktop\\unity-directory-analysis-tool\\ScriptParseTesting\\ScriptTest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -17,20 +14,8 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 0,
           "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "ScriptTest.cs",
-              "DocumentMoniker": "D:\\Aleksa\\Desktop\\unity-directory-analysis-tool\\ScriptParseTesting\\ScriptTest.cs",
-              "RelativeDocumentMoniker": "..\\ScriptParseTesting\\ScriptTest.cs",
-              "ToolTip": "D:\\Aleksa\\Desktop\\unity-directory-analysis-tool\\ScriptParseTesting\\ScriptTest.cs",
-              "RelativeToolTip": "..\\ScriptParseTesting\\ScriptTest.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAUAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-06T00:10:02.954Z"
-            },
             {
               "$type": "Document",
               "DocumentIndex": 0,
@@ -39,7 +24,7 @@
               "RelativeDocumentMoniker": "Program.cs",
               "ToolTip": "D:\\Aleksa\\Desktop\\unity-directory-analysis-tool\\tool\\Program.cs",
               "RelativeToolTip": "Program.cs",
-              "ViewState": "AgIAAAsBAAAAAAAAAAAuwCABAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAaAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-11-04T23:27:29.567Z",
               "EditorCaption": ""

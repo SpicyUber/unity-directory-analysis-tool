@@ -19,7 +19,9 @@ namespace tool
         public const int GAME_OBJECT_ID = 1, MAX_DEGREE_OF_PARALLELISM = 6;
         static void Main( string[] args)
         {
-
+            args = new string[2];
+            args[0] = @"D:\Aleksa\Desktop\unity-directory-analysis-tool\TestCase02";
+            args[1] = @"D:\Aleksa\Desktop\unity-directory-analysis-tool\DumpTestCase02";
            if (args == null || args.Length<2) {
 
                 Console.WriteLine("The tool requires a unity project path and output folder path.\nFormat: tool.exe unity_project_path output_folder_path ");
@@ -34,9 +36,10 @@ namespace tool
         {
             string[] sceneFilePaths, scriptMetaFilePaths;
             if (!Directory.Exists(Path.Combine(inputPath, "Assets"))) throw new Exception("Assets folder could not be found.");
+            if (!Directory.Exists(outputPath)) { Directory.CreateDirectory(outputPath); }
             Console.WriteLine("Searching directory for scenes and script metadata...");
             Task<string[]> t1 = Task<string[]>.Run(() => Directory.GetFiles(Path.Combine(inputPath, "Assets"), "*.unity", SearchOption.AllDirectories));
-            Task<string[]> t2 = Task<string[]>.Run(() => Directory.GetFiles(Path.Combine(inputPath, "Assets"), " *.cs.meta", SearchOption.AllDirectories));
+            Task<string[]> t2 = Task<string[]>.Run(() => Directory.GetFiles(Path.Combine(inputPath, "Assets"), "*.cs.meta", SearchOption.AllDirectories));
             Task[] dataGatheringTasks = { t1, t2 };
             Task.WaitAll(dataGatheringTasks);
 
@@ -72,7 +75,7 @@ namespace tool
             streamWriter.AutoFlush = true;
             streamWriter.Write(dump);
             streamWriter.Close();
-                Console.WriteLine("Finished dumping unused scripts into " + Path.GetFileNameWithoutExtension(inputPath) + "!");
+                Console.WriteLine("Finished dumping unused scripts into " + outputPath + "!");
             }
             catch (Exception ex) { Console.WriteLine($"ERROR: Exception while dumping unused scripts ({ex.Message})"); }
         }
@@ -96,24 +99,22 @@ namespace tool
         }
 
         private static string ConvertIntoUnityDirectoryRelativePath(string scriptMetaFilePath, string inputPath) {
-            if (scriptMetaFilePath.StartsWith(inputPath)) { 
-            string temp = scriptMetaFilePath.Substring(inputPath.Length+1);
-                if (temp.EndsWith(".meta")) return temp.Substring(0, temp.Length - 5);
-                else return temp;
-            }
-
-            Console.WriteLine("Error trimming path. (This should not ever happen in practice)");
-            return "Error";
+            string temp = Path.GetRelativePath(inputPath, scriptMetaFilePath);
+            if (temp.EndsWith(".meta"))
+                temp = Path.ChangeExtension(temp, null);
+            return temp;
+ 
             
         } 
 
         private static bool ScriptIsUsedInsideScene(string scriptMetaFilePath,string scriptGuid, string sceneFilePath, Dictionary<string, string> guidDictionary)
         {
-            StringReader input = new StringReader(File.ReadAllText(sceneFilePath));
-            YamlStream yaml = new();
-            yaml.Load(input);
+            FileStream stream = new FileStream(sceneFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            StreamReader reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
 
-           
+            YamlStream yaml = new();
+            yaml.Load(reader);
+
 
             for (int i=0; i<yaml.Documents.Count();i++)
             {
@@ -253,7 +254,7 @@ namespace tool
                 string[] yaml = File.ReadAllLines(scriptMetaFilePath);
 
                 foreach (string line in yaml) {
-                    if (line.StartsWith("guid: ")) return new(line.Split("guid: ")[1].TrimEnd(), scriptMetaFilePath);
+                    if (line.TrimStart().StartsWith("guid: ")) return new(line.TrimStart().Split("guid: ")[1].TrimEnd(), scriptMetaFilePath);
             }
                 throw new Exception("GUID not found in yaml.");
             } catch (Exception ex) { throw new Exception("ERROR: Could not locate meta file for script "+scriptMetaFilePath+". ("+ex.Message+")"); }
@@ -274,13 +275,15 @@ namespace tool
         private static async Task DumpScene(string inputFilePath, string outputPath)
         {
             try {
-                Console.WriteLine("Dumping scene" + Path.GetFileNameWithoutExtension(inputFilePath)+ " hierarchy into "+Path.GetDirectoryName(outputPath)+"...");
+                Console.WriteLine("Dumping scene " + Path.GetFileNameWithoutExtension(inputFilePath)+ " hierarchy into "+outputPath+"...");
             using (StreamWriter streamWriter = File.CreateText(Path.Combine(outputPath, Path.GetFileName(inputFilePath) + ".dump"))) { 
                     
             streamWriter.AutoFlush = true;
-            StringReader input = new StringReader(File.ReadAllText(inputFilePath));
-            YamlStream yaml = new YamlStream();
-            yaml.Load(input);
+            FileStream stream = new FileStream(inputFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            StreamReader reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+
+            YamlStream yaml = new();
+            yaml.Load(reader);
             string dumpText = "";
             RecursivePrintTree(0,"0",inputFilePath,yaml.Documents.ToList(), LocateGameObjects(inputFilePath), ref dumpText);
             await streamWriter.WriteAsync(dumpText);

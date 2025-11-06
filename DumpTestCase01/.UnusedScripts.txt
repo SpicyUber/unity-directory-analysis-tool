@@ -1,0 +1,2 @@
+Relative Path: Assets\Scripts\UnusedScript.cs , GUID: 0111ada5c04694881b4ea1c5adfed99f
+Relative Path: Assets\Scripts\Nested\UnusedScript2.cs , GUID: 4851f847002ac48c487adaab15c4350c
